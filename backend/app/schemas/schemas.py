@@ -52,3 +52,20 @@ class CatalogItemResponse(CatalogItemCreate):
 
     class Config:
         from_attributes = True
+
+class CatalogItemCreate(BaseModel):
+    item_type: str
+    serial_no: str
+    name: str
+    author: str
+    category: str
+    cost: Optional[float] = 0.0
+    procurement_date: date
+
+class MemberCreate(BaseModel):
+    first_name: str
+    last_name: str
+    contact_number: str
+    contact_address: str
+    aadhar_card_no: str
+    membership_type: str

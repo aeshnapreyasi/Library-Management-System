@@ -7,10 +7,15 @@ import IssueBook from '../components/modules/IssueBook';
 import ReturnBook from '../components/modules/ReturnBook';
 import PayFine from '../components/modules/PayFine';
 import OverdueReturns from '../components/modules/OverdueReturns';
+import BookAvailability from '../components/modules/BookAvailability';
 
 const AdminDashboard = () => {
   const { user, logout } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('overview');
+  const [issueStep, setIssueStep] = useState('search');
+  const [selectedBookForIssue, setSelectedBookForIssue] = useState(null);
+
+  const [fineMemberId, setFineMemberId] = useState('');
 
   // Expanded menu matching the PDF requirements
   const menuItems = [
@@ -76,12 +81,40 @@ const AdminDashboard = () => {
           {/* Component Mounting based on State */}
           {activeTab === 'add-book' && <AddCatalogItem />}
           {activeTab === 'add-member' && <ManageMembership />}
-          {activeTab === 'issue' && <IssueBook />}
-          {activeTab === 'return' && <ReturnBook />}
-          {activeTab === 'fine' && <PayFine />}
+        
+          {activeTab === 'issue' && (
+            issueStep === 'search' ? (
+              <BookAvailability onSelectBook={(book) => {
+                setSelectedBookForIssue(book);
+                setIssueStep('issue'); // Move to the Issue form
+              }} />
+            ) : (
+              <IssueBook 
+                selectedBookData={selectedBookForIssue} 
+                onBack={() => setIssueStep('search')} // Go back to search
+              />
+            )
+          )}
+          
+          {/* UPDATED: Return Book now triggers the redirect to Pay Fine */}
+          {activeTab === 'return' && (
+            <ReturnBook 
+              onNavigateToFine={(memberId) => {
+                setFineMemberId(memberId);
+                setActiveTab('fine'); 
+              }} 
+            />
+          )}
+          
+          {/* UPDATED: Pay Fine receives the Member ID from the Return step */}
+          {activeTab === 'fine' && (
+            <PayFine prefilledMemberId={fineMemberId} />
+          )}
+          
           {activeTab === 'overdue' && <OverdueReturns />}
         </div>
       </main>
+      
     </div>
   );
 };

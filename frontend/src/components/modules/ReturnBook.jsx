@@ -1,72 +1,117 @@
 import { useState } from 'react';
 import api from '../../services/api';
 
-const ReturnBook = () => {
-  const [formData, setFormData] = useState({
-    serial_no: '',
-    actual_return_date: new Date().toISOString().split('T')[0],
-    remarks: ''
-  });
+const ReturnBook = ({ onNavigateToFine }) => {
+  const [serialNo, setSerialNo] = useState('');
+  const [fetchedData, setFetchedData] = useState(null);
+  const [actualReturnDate, setActualReturnDate] = useState(new Date().toISOString().split('T')[0]);
+  const [remarks, setRemarks] = useState('');
   
   const [status, setStatus] = useState({ type: '', message: '' });
-  const [fineInfo, setFineInfo] = useState(null);
 
+  // 1. Fetch details to auto-populate the form
+  const handleFetchDetails = async () => {
+    setStatus({ type: 'loading', message: 'Fetching details...' });
+    try {
+      const res = await api.get(`/transactions/active/${serialNo}`);
+      setFetchedData(res.data);
+      setStatus({ type: '', message: '' });
+    } catch (err) {
+      setStatus({ type: 'error', message: err.response?.data?.detail || 'Could not find active issue for this serial number.' });
+      setFetchedData(null);
+    }
+  };
+
+  // 2. Submit the actual return
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!fetchedData) return;
+
     setStatus({ type: 'loading', message: 'Processing return...' });
-    setFineInfo(null);
     
     try {
-      const res = await api.post('/transactions/return', formData);
-      setStatus({ type: 'success', message: 'Item returned successfully!' });
+      await api.post('/transactions/return', {
+        serial_no: serialNo,
+        actual_return_date: actualReturnDate,
+        remarks: remarks
+      });
       
-      if (res.data.fine_calculated > 0) {
-        setFineInfo(`A fine of ₹${res.data.fine_calculated} has been added to the member's account.`);
-      }
+      // Requirement: Redirect to Pay Fine page irrespective of fine amount
+      // We pass the membership_id so the Fine page can auto-populate it
+      onNavigateToFine(fetchedData.membership_id);
       
-      setFormData({ ...formData, serial_no: '', remarks: '' });
     } catch (err) {
-      setStatus({ type: 'error', message: err.response?.data?.detail || 'Return failed. Please check the serial number.' });
+      setStatus({ type: 'error', message: err.response?.data?.detail || 'Return failed.' });
     }
   };
 
   return (
-    <div className="max-w-2xl bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-      <h2 className="text-xl font-semibold mb-4 border-b pb-2">Return Book / Movie</h2>
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+      <h2 className="text-xl font-semibold mb-4">Return Book / Movie</h2>
       
       {status.message && (
-        <div className={`p-3 mb-4 rounded ${status.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+        <div className={`p-3 mb-4 rounded ${status.type === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
           {status.message}
         </div>
       )}
-      
-      {fineInfo && (
-        <div className="p-3 mb-4 rounded bg-yellow-100 text-yellow-800 border border-yellow-300">
-          ⚠️ {fineInfo}
+
+      {/* Step 1: Enter Serial No */}
+      <div className="flex space-x-4 mb-6">
+        <div className="flex-1">
+          <label className="block text-sm font-medium mb-1">Serial Number *</label>
+          <input 
+            type="text" 
+            value={serialNo} 
+            onChange={(e) => setSerialNo(e.target.value)} 
+            placeholder="Enter Serial No to fetch details..."
+            className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" 
+          />
         </div>
+        <div className="flex items-end">
+          <button onClick={handleFetchDetails} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded transition font-medium">
+            Fetch Details
+          </button>
+        </div>
+      </div>
+
+      {/* Step 2: Auto-Populated Form */}
+      {fetchedData && (
+        <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in duration-300 border-t border-gray-200 dark:border-gray-700 pt-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-500">Book Name</label>
+              <input type="text" value={fetchedData.book_name} readOnly className="w-full p-2 bg-gray-100 dark:bg-gray-700 border rounded cursor-not-allowed" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-500">Author Name</label>
+              <input type="text" value={fetchedData.author_name} readOnly className="w-full p-2 bg-gray-100 dark:bg-gray-700 border rounded cursor-not-allowed" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-500">Issue Date</label>
+              <input type="text" value={fetchedData.issue_date} readOnly className="w-full p-2 bg-gray-100 dark:bg-gray-700 border rounded cursor-not-allowed" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Actual Return Date *</label>
+              <input 
+                type="date" 
+                value={actualReturnDate} 
+                onChange={(e) => setActualReturnDate(e.target.value)} 
+                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" 
+                required 
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Remarks (Optional)</label>
+            <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" rows="2"></textarea>
+          </div>
+
+          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition font-medium">
+            Confirm Return & Proceed to Fine Payment
+          </button>
+        </form>
       )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Serial Number *</label>
-            <input type="text" value={formData.serial_no} onChange={(e) => setFormData({...formData, serial_no: e.target.value})} required className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Actual Return Date *</label>
-            <input type="date" value={formData.actual_return_date} onChange={(e) => setFormData({...formData, actual_return_date: e.target.value})} required className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Remarks (Optional)</label>
-          <textarea value={formData.remarks} onChange={(e) => setFormData({...formData, remarks: e.target.value})} className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600" rows="2"></textarea>
-        </div>
-
-        <div className="flex justify-end space-x-3 pt-4">
-          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Confirm Return</button>
-        </div>
-      </form>
     </div>
   );
 };
