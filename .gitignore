@@ -1,0 +1,44 @@
+# --- General ---
+.DS_Store
+.env
+*.log
+dist/
+build/
+
+# --- Backend (Python/FastAPI) ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+.env
+.pytest_cache/
+.vscode/
+.idea/
+
+# SQLAlchemy / DB
+*.db
+*.sqlite
+
+# --- Frontend (Node/React/Vite) ---
+node_modules/
+.pnp
+.pnp.js
+.pnpm-debug.log
+coverage/
+.next/
+out/
+build/
+
+# Vite specific
+*.local
+.vite/
+
+# --- Deployment / IDE ---
+.vercel
+.netlify
+.vscode/
+.idea/
+*.swp
+*.bak
